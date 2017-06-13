@@ -127,9 +127,6 @@ endif
 ifeq ($(KERNEL_ARCH),arm64)
   # Avoid "unsupported RELA relocation: 311" errors (R_AARCH64_ADR_GOT_PAGE)
   MAKE_FLAGS += CFLAGS_MODULE="-fno-pic"
-  ifeq ($(TARGET_ARCH),arm)
-    KERNEL_CONFIG_OVERRIDE := CONFIG_ANDROID_BINDER_IPC_32BIT=y
-  endif
 endif
 
 ifneq ($(TARGET_KERNEL_ADDITIONAL_CONFIG),)
@@ -246,7 +243,7 @@ define mv-modules
     mdpath=`find $(KERNEL_MODULES_OUT) -type f -name modules.order`;\
     if [ "$$mdpath" != "" ];then\
         mpath=`dirname $$mdpath`;\
-        ko=`find $$mpath/kernel -type f -name *.ko`;\
+        ko=`find $$mpath/kernel $$mpath/extra -type f -name *.ko`;\
         for i in $$ko; do $(KERNEL_TOOLCHAIN_PATH)strip --strip-unneeded $$i;\
         mv $$i $(KERNEL_MODULES_OUT)/; done;\
     fi
@@ -309,11 +306,20 @@ TARGET_KERNEL_BINARIES: $(KERNEL_OUT_STAMP) $(KERNEL_CONFIG) $(KERNEL_HEADERS_IN
 				echo "Building Kernel Modules" ; \
 				$(MAKE) $(MAKE_FLAGS) -C $(KERNEL_SRC) O=$(KERNEL_OUT) ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) modules && \
 				$(MAKE) $(MAKE_FLAGS) -C $(KERNEL_SRC) O=$(KERNEL_OUT) INSTALL_MOD_PATH=../../$(KERNEL_MODULES_INSTALL) ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) modules_install && \
+                $(MAKE) $(MAKE_FLAGS) -C $(KERNEL_SRC) O=$(KERNEL_OUT) M=$(ANDROID_BUILD_TOP)/hardware/arm/gpu/midgard/r11p0/kernel/drivers/gpu/arm/midgard \
+                    EXTRA_CFLAGS="-DCONFIG_MALI_PLATFORM_DEVICETREE -DCONFIG_MALI_MIDGARD_DVFS -DCONFIG_MALI_BACKEND=gpu" \
+                    ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) \
+                    CONFIG_MALI_MIDGARD=m CONFIG_MALI_PLATFORM_DEVICETREE=y CONFIG_MALI_MIDGARD_DVFS=y CONFIG_MALI_BACKEND=gpu modules && \
+                $(MAKE) $(MAKE_FLAGS) -C $(KERNEL_SRC) O=$(KERNEL_OUT) M=$(ANDROID_BUILD_TOP)/hardware/wifi/broadcom/drivers/ap6xxx/bcmdhd_1_201_59_x \
+                    ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) \
+                    CONFIG_DHD_USE_STATIC_BUF=$(CONFIG_DHD_USE_STATIC_BUF) modules && \
+				$(MAKE) $(MAKE_FLAGS) -C $(KERNEL_SRC) O=$(KERNEL_OUT) M=$(ANDROID_BUILD_TOP)/hardware/wifi/broadcom/drivers/ap6xxx/bcmdhd_1_201_59_x INSTALL_MOD_PATH=../../$(KERNEL_MODULES_INSTALL) ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) modules_install && \
+				$(MAKE) $(MAKE_FLAGS) -C $(KERNEL_SRC) O=$(KERNEL_OUT) M=$(ANDROID_BUILD_TOP)/hardware/arm/gpu/midgard/r11p0/kernel/drivers/gpu/arm/midgard INSTALL_MOD_PATH=../../$(KERNEL_MODULES_INSTALL) ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) modules_install && \
 				$(mv-modules) && \
 				$(clean-module-folder) ; \
 			else \
 				echo "Kernel Modules not enabled" ; \
-			fi ;
+			fi
 
 
 $(TARGET_KERNEL_MODULES): TARGET_KERNEL_BINARIES
